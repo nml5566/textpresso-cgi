@@ -1,0 +1,43 @@
+#!/usr/bin/perl
+
+# CGI script provides hompage of Textpresso system
+#
+# Copyright (c) Hans-Michael Muller 2007.
+
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use TextpressoDisplayTasks;
+use TextpressoDisplayGlobals;
+
+my $query = new CGI;
+my $myself = $query->url(-absolute => 1);
+
+PrintTop($query, $myself, 1);
+
+my $subtable2 = new TextpressoTable;
+$subtable2->init;
+$subtable2->addtablerow("");
+my $text = "Copyright © 2001-2007 California Institute of Technology. All rights reserved. ";
+$subtable2->addtablerow($text);
+$text = "The " . $query->a({href=>"http://www.geneontology.org", target=>"_blank"}, "Gene Ontology Consortium");
+$text .= " holds a copyright for most of the contents of the \'Biological Process\', \'Molecular Function\' and \'Cellular Component\' ";
+$text .= "ontologies used on this site. ";
+$text .= "All other material in this web site are copyrighted by the authors of the Textpresso Project at the California Institute of Technology. ";
+$text .= "All materials appearing on this server may not be reproduced or stored in a retrieval system without prior written permission of the publisher and in no case for profit. ";
+$text .= "Documents from this server are provided \"AS-IS\" without any warranty, expressed or implied. ";
+$subtable2->addtablerow($text);
+$text = "Any results and output obtained from the Textpresso";
+$text .= $query->span({style => "vertical-align:super;font-size:60%"}, "TM");
+$text .= " server shall not be used for any purpose other than private study, scholarship or academic research. ";
+$text .= " Anybody using Textpresso";
+$text .= " in excess of \"fair use\" may be liable for copyright infringement. ";
+$subtable2->addtablerow($text);
+$text = "Hans-Michael Müller, Eimear E. Kenny and Paul W. Sternberg claim all rights in the word \"Textpresso\" as a trademark. ";
+$subtable2->addtablerow($text);
+print $subtable2->maketable($query, tablestyle => 'borderless', width => "60%");
+print $query->br;
+
+PrintBottom($query);

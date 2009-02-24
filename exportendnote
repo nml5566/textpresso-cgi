@@ -1,0 +1,94 @@
+#!/usr/bin/perl
+
+# CGI script provides search page of Textpresso system
+#
+# Copyright (c) Hans-Michael Muller 2007.
+
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use TextpressoDatabaseGlobals;
+use TextpressoDatabaseSearch;
+use TextpressoDisplayTasks;
+
+# globals
+
+use constant ENDNOTE_FIELDS => { author => '%A',
+				 citation => { volume => '%V',
+					       page => '%P'},
+				 journal => '%J',
+				 type => '%0',
+				 year => '%D',
+				 abstract => '%X',
+				 title => '%T',
+				 accession => '%M'};
+
+my $query = new CGI;
+my $id = $query->param('id');
+my $lit = $query->param('lit');
+my $mode = $query->param('mode');
+
+# print header
+print $query->header(-type => "application/octet-stream", 
+		     -attachment => "$id.txt");
+
+
+# start processing
+
+if ($mode eq 'singleentry') {
+    print makesingleentry($lit, $id);
+} elsif ($mode eq 'allentries') {
+    my $filename = DB_TMP . '/tmp/' . $id;
+    my %results = readresults($filename);
+    foreach my $lit (sort keys % results) {
+	foreach my $id (sort keys % { $results{$lit} }) {
+	    print makesingleentry($lit, $id);
+	    print "\n";
+	}
+    }
+}
+
+sub makesingleentry {
+    
+    my $lit = shift;
+    my $id = shift;
+    
+    my $entry = '';
+    foreach my $enfield (reverse sort keys % {(ENDNOTE_FIELDS)}) {
+	my $aux = '';
+	if ($enfield eq 'accession') {
+	    $aux .= (ENDNOTE_FIELDS)->{$enfield};
+	    $aux .= " $id\n";
+	} else {
+	    my $x = gettext($lit, $enfield, $id);
+	    $x =~ s/\n//g;
+	    if ($enfield eq 'citation') {
+		my $v = '';
+		my $p = '';
+		if ($x =~/V : (.+?) P : (.+)/) {
+		    $v = $1;
+		    $p = $2;
+		}
+		$aux .= (ENDNOTE_FIELDS)->{$enfield}{volume};
+		$aux .= " $v\n";
+		$aux .= (ENDNOTE_FIELDS)->{$enfield}{page};
+		$aux .= " $p\n";
+	    } elsif ($enfield eq 'author') {
+		while ($x =~ /([\w\-]+) ([\w\-]+)/g) {
+		    $aux .= (ENDNOTE_FIELDS)->{$enfield};
+		    $aux .= ' ';
+		    $aux .= "$1 $2\n";
+		}
+	    } else {
+		$aux .= (ENDNOTE_FIELDS)->{$enfield};
+		$aux .= ' ';
+		$aux .= "$x\n";
+	    }
+	}
+	$entry .= $aux;
+    }
+    
+    return $entry;
+}

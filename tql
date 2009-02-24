@@ -1,0 +1,486 @@
+#!/usr/bin/perl
+
+# CGI script provides search page of Textpresso system
+#
+# Copyright (c) Hans-Michael Muller 2007.
+
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use POSIX;
+use TextpressoDisplayGlobals;
+use TextpressoDisplayTasks;
+use TextpressoDatabaseGlobals;
+use TextpressoDatabaseQuery;
+use TextpressoDatabaseSearch;
+use TextpressoDatabaseCategories;
+use Time::HiRes qw(gettimeofday);
+
+my $query = new CGI;
+my $myself = $query->url(-absolute => 1);
+(my $base = $query->url(-base => 1)) =~ s/http\:\/\///g;
+my @cookies = ();
+foreach my $opt (keys % {(DB_DISPLAY_FIELDS)}, 'supplementals', 'epp', 'matches', 'textlinks', 'searchterm-highlighting') {
+    if (defined($query->param("disp_$opt"))) {
+	push @cookies, $query->cookie( -name => "opt_$opt",
+				       -value => $query->param("disp_$opt"),
+				       -domain => $base,
+				       -expires => '+365d');
+    }
+}
+
+my $warncolor1 = (DSP_HIGHLIGHT_COLOR)->{warning};
+my $warncolor2 = (DSP_HIGHLIGHT_COLOR)->{offcolor};
+
+my $location = PrintTop($query, $myself, 1, @cookies);
+
+# Process form here
+
+my $starttime = gettimeofday();
+my %results;
+
+######################################################## # New
+# Read in the HTML links up-front
+my $infile = "<" . HTML_LINKTEMPLATES;
+my @regexps = ();
+my @urls = ();
+my @explanations = ();
+open (IN, $infile);
+while (my $line = <IN>) {
+    chomp ($line);
+    next if (!($line =~ /^http/));
+    (my $u, my $r, my $e) = split (/[ \t]+/, $line);
+    push @urls, $u;
+    push @regexps, $r;
+    push @explanations, $e;
+}
+########################################################
+
+
+foreach my $opt (keys % {(DB_DISPLAY_FIELDS)}, 'supplementals', 'epp', 'matches', 'textlinks', 'searchterm-highlighting') {
+    if (!defined($query->param("disp_$opt"))) {
+	if (defined($query->cookie("opt_$opt"))) {
+	    $query->param(-name => "disp_$opt",
+			  -value => $query->cookie("opt_$opt"));
+	} elsif ($opt eq 'matches') {
+	    $query->param(-name => "disp_$opt",
+			  -value => 1);
+	} elsif ($opt eq 'epp') {
+	    $query->param(-name => "disp_$opt",
+			  -value => 5);
+	} else {
+	    my $on = HTML_ON;
+	$query->param(-name => "disp_$opt", -value => $on);
+	}
+    }
+}
+
+my $stopwordstring = getstopwords(DB_STOPWORDS);
+my $foundstopwords = "";
+
+my $searchfilename = $query->param('searchfilename');
+if ($searchfilename eq "") {
+    my $tmpfilename;
+    do { $tmpfilename = tmpnam() } until (!-e DB_TMP . '/' . $tmpfilename);
+    $searchfilename = DB_TMP . '/' . $tmpfilename;
+    system ("touch $searchfilename");
+}
+my $tqueryfilename = $query->param('tqueryfilename');
+if ($tqueryfilename eq "") {
+    my $tmpfilename;
+    do { $tmpfilename = tmpnam() } until (!-e DB_TMP . '/' . $tmpfilename);
+    $tqueryfilename = DB_TMP . '/' . $tmpfilename;
+    system ("touch $tqueryfilename");
+}
+my $filteredfilename = $query->param('filteredfilename');
+if ($filteredfilename eq "") {
+    my $tmpfilename;
+    do { $tmpfilename = tmpnam() } until (!-e DB_TMP . '/' . $tmpfilename);
+    $filteredfilename = DB_TMP . '/' . $tmpfilename;
+    system ("touch $filteredfilename");
+    $query->param(-name => 'filteredfilename', -value => $filteredfilename);
+}
+
+my $newsearch = 0;
+my $history = "";
+if ($query->param('submit')) {
+    my @commands = split (/\n/, $query->param('commands'));
+    foreach my $command (@commands) {
+	$command =~ s/^\ *//g;
+	$command =~ s/\r//g;
+#	$history .=  $query->span({-style => 'font-style:normal;'}, $command) . $query->br;
+	if (substr($command, 0, 1)  =~ /s/i) {
+	    (my $first, my $second) = split (/\ *=\ */, $command);
+	    (my $dummy, my $varname) = split (/\ +/, $first);
+	    my @values = split (/\ *\,\ */, $second);
+	    if ($varname =~ /literatures?/i) {
+		my %current = ();
+		foreach ($query->param('literature')) {
+		    $current{$_} = 1;
+		}
+		foreach my $lit (@values) {
+		    foreach my $choice (keys %{(DB_LITERATURE)}) {
+			if ($choice =~ /$lit/i) {
+			    $current{$choice} = 1;
+			}
+		    }
+		}
+		$query->param(-name => 'literature', -value => [keys % current]);
+	    } elsif ($varname =~ /fields?/i) {
+		my %current = ();
+		foreach ($query->param('target')) {
+		    $current{$_} = 1;
+		}
+		foreach my $tgt (@values) {
+		    foreach my $choice (keys %{(DB_SEARCH_TARGETS)}) {
+			if ($choice =~ /$tgt/i) {
+			    $current{$choice} = 1;
+			}
+		    }
+		}
+		$query->param(-name => 'target', -value => [keys % current]);
+	    } elsif ($varname =~ /(exact|match)/i) {
+		if ($values[0] =~ /(yes|1)/i) {
+		    $query->param(-name => 'exactmatch', -value => 1);
+		} elsif ($values[0] =~ /(no|0)/i) {
+		    $query->param(-name => 'exactmatch', -value => 0);
+		}
+	    } elsif ($varname =~ /(case|sensitive)/i) {
+		if ($values[0] =~ /(yes|1)/i) {
+		    $query->param(-name => 'casesensitive', -value => 1);
+		} elsif ($values[0] =~ /(no|0)/i) {
+		    $query->param(-name => 'casesensitive', -value => 0);
+		}		
+	    } elsif ($varname =~ /(sentence|scope)/i) {
+		foreach my $choice (keys %{(DB_SEARCH_RANGES)}) {
+		    if ($choice =~ /$values[0]/i) {
+			$query->param(-name => 'sentencerange', -value => $choice);
+		    }
+		}
+	    } elsif ($varname =~ /(search|mode)/i) {
+		foreach my $choice (@{(DB_SEARCH_MODE)}) {
+		    if ($choice =~ /$values[0]/i) {
+			$query->param(-name => 'mode', -value => $choice);
+		    }
+		}
+	    } elsif ($varname =~ /(sort(s|ed)?|by)/i) {
+		foreach my $choice ("score (hits)", keys % {(DB_DISPLAY_FIELDS)}) {
+		    if ($choice =~ /$values[0]/i) {
+			$query->param(-name => 'sort', -values => $choice);
+		    }
+		}
+	    }
+	} elsif (substr($command, 0, 1)  =~ /c/i) {
+	    (my $dummy, my $varname) = split (/\ +/, $command);
+	    if ($varname =~ /literatures?/i) {
+		$query->delete('literature');
+	    } elsif ($varname =~ /fields?/i) {
+		$query->delete('target');
+	    } elsif ($varname =~ /(exact|match)/i) {
+		$query->delete('exactmatch');
+	    } elsif ($varname =~ /(case|sensitive)/i) {
+		$query->delete('casesensitive');
+	    } elsif ($varname =~ /(sentence|scope)/i) {
+		$query->delete('sentencerange');
+	    } elsif ($varname =~ /(search|mode)/i) {
+		$query->delete('mode');
+	    } elsif ($varname =~ /(sort(s|ed)?|by)/i) {
+		$query->delete('sort');
+	    } elsif ($varname =~ /all/i) {
+		$query->delete('literature');
+		$query->delete('target');
+		$query->delete('exactmatch');
+		$query->delete('casesensitive');
+		$query->delete('sentencerange');
+		$query->delete('mode');
+		$query->delete('sort');
+	    }
+	} elsif (substr($command, 0, 1)  =~ /f/i) {
+	    (my $first, my $fnextension) = split (/\ *\-\>\ */, $command);
+	    my @aux = split (/\ +/, $first);
+	    my $dummy = shift (@aux);
+	    my $type = shift(@aux);
+	    my $num = pop(@aux);
+	    my $comp = pop (@aux);
+	    my $data = join (" ", @aux);
+	    my $tpquery = new TextpressoDatabaseQuery;
+	    $tpquery->init;
+	    my %literatures = ();
+	    foreach ($query->param('literature')) {
+		$literatures{$_} = 1;
+	    }
+	    my %targets = ();
+	    foreach ($query->param('target')) {
+		$targets{$_} = 1;
+	    }
+	    if ($type =~ /keywords?/i) {
+		$foundstopwords = ParseSearchString($data, $tpquery, $stopwordstring, $num, $comp,
+						    $query->param('sentencerange'), $query->param('exactmatch') || 0,
+						    $query->param('casesensitive') || 0, \%literatures, \%targets);
+	    } elsif ($type =~ /categor(y|ies)/i) {
+		$data =~ s/\"//g;
+		my $aux = (DB_CATEGORIES)->{$data};
+		if (defined(@{(DB_CATEGORYCHILDREN)->{$data}})) {
+		    foreach my $child (@{(DB_CATEGORYCHILDREN)->{$data}}) {
+			$aux .= "," . (DB_CATEGORIES)->{$child};
+		    }
+		}
+		$tpquery->addspecific('&&', 'category', $aux, $num, $comp,
+				      $query->param('sentencerange'), $query->param('exactmatch') || 0,
+				      $query->param('casesensitive') || 0, \%literatures, \%targets);
+	    } elsif ($type =~ /attributes?/i) {
+		$data =~ s/\"//g;
+		my @aux = split(/\:/, $data);
+		$data = (DB_CATEGORIES)->{$aux[0]} . '/' . $aux[1] . '/' . $aux[2];
+		$tpquery->addspecific('&&', 'attribute', $data, $num, $comp,
+				      $query->param('sentencerange'), $query->param('exactmatch') || 0,
+				      $query->param('casesensitive') || 0, \%literatures, \%targets);
+	    }
+	    my $fn = $searchfilename . "-" . $fnextension; 
+	    $newsearch = 1;
+	    $tpquery->savetofile($tqueryfilename);
+	    %results = textpressosearch($tpquery, $newsearch, $fn, $query->param('mode'));
+
+	    saveresults(\%results, $searchfilename); # save a second time for flipping through pages
+	} elsif (substr($command, 0, 1)  =~ /a/i) {
+	    (my $first, my $fnextension) = split (/\ *\-\>\ */, $command);
+	    (my $dummy, my $fnextension1, my $fnextension2) =   split (/\ +/, $first);
+	    my $tpquery = new TextpressoDatabaseQuery; # is a dummy here
+	    $tpquery->init;
+	    my $fn1 = $searchfilename . "-" . $fnextension1;
+	    my $fn2 = $searchfilename . "-" . $fnextension2;
+	    $newsearch = 0;
+	    my %subres1 = textpressosearch($tpquery, $newsearch, $fn1, $query->param('mode'));
+	    my %subres2 = textpressosearch($tpquery, $newsearch, $fn2, $query->param('mode'));
+	    %results = dobooleanand(\%subres1, \%subres2, $query->param('sentencerange'));
+
+	    saveresults(\%results, $searchfilename); # save for flipping through pages
+	    my $fn = $searchfilename . "-" . $fnextension; 
+	    saveresults(\%results, $fn);
+	} elsif (substr($command, 0, 1)  =~ /o/i) {
+	    (my $first, my $fnextension) = split (/\ *\-\>\ */, $command);
+	    (my $dummy, my $fnextension1, my $fnextension2) =   split (/\ +/, $first);
+	    my $tpquery = new TextpressoDatabaseQuery; # is a dummy here
+	    $tpquery->init;
+	    my $fn1 = $searchfilename . "-" . $fnextension1;
+	    my $fn2 = $searchfilename . "-" . $fnextension2;
+	    $newsearch = 0;
+	    my %subres1 = textpressosearch($tpquery, $newsearch, $fn1, $query->param('mode'));
+	    my %subres2 = textpressosearch($tpquery, $newsearch, $fn2, $query->param('mode'));
+	    %results = dobooleanor(\%subres1, \%subres2);	    
+
+	    saveresults(\%results, $searchfilename); # save for flipping through pages
+	    my $fn = $searchfilename . "-" . $fnextension; 
+	    saveresults(\%results, $fn);
+	} elsif (substr($command, 0, 1)  =~ /n/i) {
+	    (my $first, my $fnextension) = split (/\ *\-\>\ */, $command);
+	    (my $dummy, my $fnextension1, my $fnextension2) =   split (/\ +/, $first);
+	    my $tpquery = new TextpressoDatabaseQuery; # is a dummy here
+	    $tpquery->init;
+	    my $fn1 = $searchfilename . "-" . $fnextension1;
+	    my $fn2 = $searchfilename . "-" . $fnextension2;
+	    $newsearch = 0;
+	    my %subres1 = textpressosearch($tpquery, $newsearch, $fn1, $query->param('mode'));
+	    my %subres2 = textpressosearch($tpquery, $newsearch, $fn2, $query->param('mode'));
+	    %results = dobooleanandnot(\%subres1, \%subres2, $query->param('sentencerange'));
+
+	    saveresults(\%results, $searchfilename); # save for flipping through pages
+	    my $fn = $searchfilename . "-" . $fnextension; 
+	    saveresults(\%results, $fn);
+	} elsif (substr($command, 0, 1)  =~ /d/i) {
+	    (my $dummy, my $fnextension) =   split (/\ +/, $command);
+	    my $tpquery = new TextpressoDatabaseQuery; # is a dummy here
+	    $tpquery->init;
+	    my $fn = $searchfilename . "-" . $fnextension;
+	    $newsearch = 0;
+	    %results = textpressosearch($tpquery, $newsearch, $fn, $query->param('mode'));
+
+	}
+    }
+    
+    $query->param(-name => 'page', -value => 1);
+} else {
+    %results = readresults($searchfilename);
+}
+
+############
+# Filtering
+############
+if ($newsearch == 1) {
+    $query->delete('filterstring');
+}
+
+my %filtered_results;
+foreach my $lit (keys %results) {
+    foreach my $id (keys % {$results{$lit}}) {
+	foreach my $tgt (keys % {$results{$lit}{$id}}) {
+	    foreach my $sen (keys % {$results{$lit}{$id}{$tgt}}) {
+		$filtered_results{$lit}{$id}{$tgt}{$sen} = $results{$lit}{$id}{$tgt}{$sen};
+	    }
+	}
+    }
+}
+if ($query->param('filterstring') =~ /\w+/) {	
+    Filter(\%results, \%filtered_results, $query->param('filterstring'));
+}
+saveresults(\%filtered_results, $filteredfilename);
+
+my %ltk = littgtkey(\%filtered_results); # this also `cleans' up empty entries of results
+my @ltks = keys % ltk;
+my $doctotal = scalar(@ltks);
+my $clstrtotal = 0;
+foreach my $l (@ltks) {
+    $clstrtotal += scalar (@{$ltk{$l}});
+}
+my $totalpages = int($doctotal/($query->param('disp_epp') || 10) + 1);
+
+if ($query->param('previouspage')) {
+    my $dp = ($query->param('page') == 1) ? 1 : $query->param('page') - 1;
+    $query->param(-name => 'page', -value => $dp);
+    $query->delete('previouspage');
+}
+
+if ($query->param('nextpage')) {
+    my $dp = ($query->param('page') >= $totalpages) ? $totalpages : $query->param('page') + 1;
+    $query->param(-name => 'page', -value => $dp);
+    $query->delete('nextpage');
+}
+
+my $extramessage = "";
+$extramessage = "Response time: " . int((gettimeofday() - $starttime)*1000)/1000 . " seconds.";
+# End of process form
+
+# Put form here
+
+print $query->start_form(-method => 'POST', -action => $myself);
+
+$query->param('literature', @{(DB_LITERATURE_DEFAULTS)});
+my $main = new TextpressoTable;
+$main->init;
+$main->addtablerow("");
+$main->addtablerow(CreateParameterSettingInterface($query),
+		   CreateCommandTextArea($query, "Commands", "Add one command per line. ", "Hit \'submit!\' when done. "),
+		   CreateCommandExplanations($query, $history));
+print $main->maketable($query, tablestyle => 'borderless', width => "100%");
+
+# End of form
+
+# Print output here
+
+##########
+# Filter #
+##########
+if (%filtered_results) {
+    my $filter = new TextpressoTable;
+    $filter->init;
+    $filter->addtablerow("");
+    $filter->addtablerow(CreateFilterInterface($query));
+    print $filter->maketable($query, tablestyle => 'borderless', width => "100%");
+}
+
+
+if (%filtered_results) {
+    if ($foundstopwords ne "") {
+	PrintStopwordWarning($query, $foundstopwords, $warncolor2);
+    }
+
+    my $tpquery = new TextpressoDatabaseQuery;
+    $tpquery->readfromfile($tqueryfilename);
+    my @highlightkeywords = makehighlightterms($tpquery, 'keyword') if ($query->param("disp_searchterm-highlighting") eq 'on');
+    my %invlist = preparesortresults(\%ltk, \%filtered_results, $query->param('sort'));
+    my @sorted = ();
+    if ($query->param('sort') =~ /(score|hits|year)/i) {
+	@sorted = (sort numerically keys % invlist);
+    } else {
+	@sorted = (sort alphabetically keys % invlist);
+    }
+    my @pagechoices = ();
+    for (my $i = 0; $i < $totalpages; $i++) {
+	push @pagechoices, $i + 1;
+    }
+
+    print $query->hr;
+    my $disptbl = new TextpressoTable;
+    $disptbl->init;
+    $disptbl->addtablerow("");
+    $disptbl->addtablerow(CreateFlipPageInterface($query, 1 - ($query->param('page') == 1), 1,
+						  1 - ($query->param('page') == $totalpages), 1, @pagechoices),
+			  CreateDisplayOptions($query));
+    print $disptbl->maketable($query, tablestyle => 'borderless', width => "100%");
+    if ($query->param('mode') =~ /(boolean|vector)/i) {	
+	my $resulttable = new TextpressoTable;
+	$resulttable->init;
+	$resulttable->addtablerow($query->span({-style => "font-weight:bold;"}, "$clstrtotal matches found in ") .
+				  $query->span({-style => "font-weight:bold;"}, "$doctotal documents. ") .
+				  $query->span({-style => "font-weight:lighter;"}, $extramessage));
+	(my $fn) = $filteredfilename =~ /.+\/(.+?)$/;
+	my $endnoteurl = "exportendnote?mode=allentries&id=$fn";
+	(my $printurl = $query->self_url) =~ s/cgi-bin\/tql/cgi-bin\/printable/;
+	$resulttable->addtablerow(PrintGlobalLinkTable($query, 
+						       "all results in endnote" => $endnoteurl,
+						       "all results in print version" => $printurl));
+	my $entrycounter = 0;
+	foreach my $k (@sorted) {
+	    foreach my $l (sort @{$invlist{$k}}) {
+		$entrycounter++;
+		next unless ($entrycounter > ($query->param('page') - 1)*$query->param('disp_epp'));
+		next unless ($entrycounter <= $query->param('page')*$query->param('disp_epp'));
+		my $entrytable = new TextpressoTable;
+		$entrytable->init;
+		my $score = 0;
+		(my $lit, my $tgt, my $key) = split(/\ -\ /, $l);
+		foreach my $clstr (@{$ltk{$l}}) {
+		    $score += $filtered_results{$lit}{$key}{$tgt}{$clstr};
+		}
+		my @highlights = (@highlightkeywords, makehighlightterms($tpquery, 'category', $lit, $tgt, $key)) if ($query->param("disp_searchterm-highlighting") eq 'on');
+		my $rightcontent = $query->div({-align => "right"}, 
+					       $query->span({-style => "font-weight:bold;"}, "Score: ") . sprintf("%4.2f", $score));
+		$entrytable->addtablerow($rightcontent);
+		
+		my $var = "(" . join("|", @highlights) . ")"; # New
+		makeentry($query, $entrytable, $l, \@{$ltk{$l}}, \%filtered_results, \@urls, \@regexps, \@explanations, $var); # New
+		$resulttable->addtablerow($entrytable->maketable($query, tablestyle => 'borderless', 
+								 DSP_HDRCOLOR => 'black', DSP_HDRSIZE => '75%',
+								 width => "100%"));
+	    }
+	}
+	print $resulttable->maketable($query, 
+				      tablestyle => 'headerbackground', cellspacing => '0',
+				      cellpadding => '0', border => '1',
+				      DSP_HDRBCKGRND => '#696969', width => "100%");
+    } else {
+	print $query->span({-style => "color:$warncolor1;"},
+			   "No other search mode except boolean and vector has been implemented yet.");	
+	print $query->br;
+    }
+    print $query->div({-align => 'right'}, 
+		      CreateFlipPageInterface($query, 1 - ($query->param('page') == 1), 0,
+					      1 - ($query->param('page') == $totalpages), 1, @pagechoices));
+    
+} elsif ($newsearch == 1) {
+    print $query->span({-style => "font-weight:bold;color:$warncolor2;"}, "No matches found.");
+    print $query->p;
+}
+
+# End print output 
+
+print $query->hidden('searchfilename', $searchfilename);
+print $query->hidden('tqueryfilename', $tqueryfilename);
+print $query->hidden('filteredfilename', $filteredfilename);
+print $query->hidden('literature', $query->param('literature'));
+print $query->hidden('target', $query->param('target'));
+print $query->hidden('exactmatch', $query->param('exactmatch'));
+print $query->hidden('casesensitive', $query->param('casesensitive'));
+print $query->hidden('sentencerange', $query->param('sentencerange'));
+print $query->hidden('mode', $query->param('mode'));
+print $query->hidden('sort', $query->param('sort'));
+print $query->end_form;
+
+# End of form
+
+PrintBottom($query, "");
+
+sub numerically { $b <=> $a }
+sub alphabetically { $a cmp $b }

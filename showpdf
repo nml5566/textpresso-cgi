@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use TextpressoDatabaseGlobals;
+
+my $query = new CGI;
+my $absmyself = $query->url(absolute=>1);
+
+my $file_name = $query->param('filename');
+open(PDF, "</usr/local/textpresso/ecoli/Data/includes/pdf/$file_name") || die "Could not open PDF [$!]";
+binmode PDF;
+my $output = do { local $/; <PDF> };
+close(PDF);
+
+print "Content-Type: application/pdf\n";
+print "Content-Length: " .length($output) . "\n\n";
+print $output;

@@ -1,0 +1,171 @@
+#!/usr/bin/perl
+
+# CGI script provides ontology page of Textpresso system
+#
+# Copyright (c) Hans-Michael Muller 2007.
+
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use TextpressoDisplayTasks;
+use TextpressoDisplayGlobals;
+use TextpressoGeneralGlobals;
+
+my $query = new CGI;
+my $myself = $query->url(-absolute => 1);
+my $location = PrintTop($query, $myself, 1);
+
+# Put form here, and interlace output
+
+print $query->start_form(-method => 'POST', -action => $myself);
+
+my $main = new TextpressoTable;
+$main->init;
+$main->addtablerow("Ontology Browser");
+$main->addtablerow('This browser tests a keyword against all regular expressions in the lexicon. ');
+$main->addtablerow('Type in one phrase, which can consist of several words: ');
+$main->addtablerow($query->textfield(-name => 'simplestring', -size => 50, -maxlength => 255));
+$main->addtablerow($query->submit(-name => 'search', -value => 'Test!'));
+
+my $ael = (GE_DELIMITERS)->{annotation_entry_left};
+my $aer = (GE_DELIMITERS)->{annotation_entry_right};
+my $del = (GE_DELIMITERS)->{lexicon}; 
+
+if (($query->param('search')) || $query->param("simplestring")) {
+    use TextpressoGeneralTasks;
+    use TextpressoDatabaseGlobals;
+    use File::Basename;
+    
+    my %output = ();
+    my $search_string = $query->param("simplestring");
+    my @searchstringset = split (/($ael)|($aer)/, $search_string);
+    push @searchstringset, $search_string;
+    my %output = ();
+    foreach my $lit (keys % { (DB_LITERATURE) }) {
+	my $lexdir = DB_ROOT . (DB_LITERATURE)->{$lit} . (DB_SUPPLEMENTAL)->{lexicon};
+	
+	my $dirin = $lexdir;
+	my @lexfiles = <$dirin/*>;
+	
+	foreach my $file (@lexfiles) {
+	    (my $fname, my $fdir, my $fsuf) = fileparse($file, qr{\.\d+-gram});
+	    $fsuf =~ s/^\.(\d+)-gram/$1/;
+	    open (IN, "<$file");
+	    my $inline = '';
+	    my %possible_keys = ();
+	    while (my $line = <IN>) {
+		$inline .= $line;
+		$possible_keys{$line} = 1;
+	    }
+	    my $actionflag = 0;
+	    foreach my $searchitem (@searchstringset) {
+		if ($possible_keys{"$searchitem\n"}) {
+		    $actionflag = 1;
+		}
+	    }
+	    if ($actionflag) {
+		my @entries = split (/$del\n/, $inline);
+		foreach my $searchitem (@searchstringset) {
+		    foreach my $entry (@entries) {
+			my @items = split (/\n/, $entry);
+			my $key = shift(@items);
+			if ($searchitem =~ m/($ael)($key)($aer)/i) {
+			    $output{$lit}{$key}{$fname}{join(" ", @items)} = 1;
+			}
+		    }
+		}
+	    }
+	    close (IN);
+	}
+    }
+    
+    if (%output) {
+	my $rslt = new TextpressoTable;
+	$rslt->init;
+	$rslt->addtablerow("Literature", "Category", "Term", "Attributes");
+	foreach my $l (sort keys % output) {
+	    foreach my $k (sort keys % { $output{$l} }) {
+		foreach my $c (sort keys % { $output{$l}{$k} }) {
+		    my @nice = ();
+		    use TextpressoDatabaseCategories;
+		    foreach my $cc (keys %{(DB_CATEGORIES)}) {
+			push @nice, $cc if ((DB_CATEGORIES)->{$cc} eq $c);
+		    }
+		    foreach my $o (sort keys % { $output{$l}{$k}{$c} }) {
+			$rslt->addtablerow($l, join(" ", @nice) || $c, $k, $o);
+		    }
+		}
+	    }
+	}
+	$main->addtablerow($rslt->maketable($query, width => "100%",
+					    DSP_HDRCOLOR => 'black', DSP_HDRSIZE => 2));
+    } else {
+	my $warncolor = (DSP_HIGHLIGHT_COLOR)->{offcolor};
+	$main->addtablerow($query->span({-style => "font-weight:bold;color:$warncolor;"}, "No matches found."));
+    }
+    
+}
+
+print $main->maketable($query, 
+		       tablestyle => 'borderless-headerbackground', 
+		       DSP_HDR_SIZE => 3,
+		       width => "100%");
+
+my $main2 = new TextpressoTable;
+$main2->init;
+$main2->addtablerow("Category Lists");
+$main2->addtablerow('Choose category from popup menu whose lexicon you want to have displayed: ');
+use TextpressoDatabaseCategories;
+my @categories = sort (keys %{(DB_CATEGORIES)});
+$main2->addtablerow($query->popup_menu(-name => 'category',
+				       -values => [sort @categories]));
+$main2->addtablerow($query->submit(-name => 'display', -value => 'Display!'));
+if (($query->param('display'))) {
+    use TextpressoGeneralTasks;
+    use TextpressoGeneralGlobals;
+    use TextpressoDatabaseGlobals;
+    
+    my $rslt = new TextpressoTable;
+    $rslt->init;
+    $rslt->addtablerow("Literature(s)", "Term", "Attributes");
+    
+    my $cat = $query->param('category');
+    my $category = DB_CATEGORIES->{$cat};
+    
+    foreach my $lit (keys % { (DB_LITERATURE) }) {
+	my $lex_dir = DB_ROOT . (DB_LITERATURE)->{$lit} . (DB_SUPPLEMENTAL)->{lexicon};
+	my $files = $lex_dir . $category;
+	my @lex_files = <$files*>;
+	
+	foreach my $file (@lex_files) {
+	    (my $fname, my $fdir, my $fsuf) = fileparse($file, qr{\.\d+-gram});
+	    $fsuf =~ s/^\.(\d+)-gram/$1/;
+	    open (IN, "<$file");
+	    my $inline = '';
+	    while (my $line = <IN>) {
+		$inline .= $line;
+	    }
+	    my @entries = split (/$del\n/, $inline);
+	    foreach my $entry (@entries) {
+		my @items = split (/\n/, $entry);
+		my $key = shift(@items);
+		$rslt->addtablerow($lit, $key, join(", ", @items));
+	    }
+	    close (IN);
+	}
+    }
+    $main2->addtablerow($rslt->maketable($query, width => "100%",
+					 DSP_HDRCOLOR => 'black', DSP_HDRSIZE => 2));
+    
+}
+print $main2->maketable($query, 
+			tablestyle => 'borderless-headerbackground', 
+			DSP_HDR_SIZE => 3,
+			width => "100%");
+
+print $query->end_form;
+# End of form                
+
+PrintBottom($query);

@@ -1,0 +1,28 @@
+#!/usr/bin/perl
+
+# CGI script provides download page of Textpresso system
+#
+# Copyright (c) Hans-Michael Muller 2007.
+
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use TextpressoDisplayTasks;
+use TextpressoDisplayGlobals;
+
+my $query = new CGI;
+my $myself = $query->url(-absolute => 1);
+
+PrintTop($query, $myself, 1);
+
+my $subtable2 = new TextpressoTable;
+$subtable2->init;
+$subtable2->addtablerow("");
+my $text = "(Your local downloads such as document(ation)s, lists, data, etc. can be deposited here.)";
+$subtable2->addtablerow($text);
+print $subtable2->maketable($query, tablestyle => 'borderless', width => "60%");
+print $query->br;
+
+PrintBottom($query);

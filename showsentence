@@ -1,0 +1,74 @@
+#!/usr/bin/perl
+
+# CGI script shows sentences that are suppressed in the
+# search page of Textpresso system because they appear scrambled
+#
+# Copyright (c) Arun Rangarajan & Hans-Michael Muller 2007.
+
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use TextpressoDatabaseGlobals;
+
+### globals
+#
+
+# handle to this CGI and own address
+my $query = new CGI;
+my $absmyself = $query->url(absolute=>1);
+
+### process form
+#
+
+#
+###
+
+PrintHeader($query);
+
+### first part of output goes here
+#
+
+my $file_name = $query->param('filename');
+my $file_name = DB_TMP . '/' . $file_name;
+open (IN, "<$file_name") || die ("Could not open $file_name for reading.");
+
+my $sen = "";
+while (<IN>)
+{	$sen .= $_;
+}
+close (IN);
+print $query->start_b;
+print $query->font("Sentence: ");
+print $query->end_b;
+print $query->start_a;
+print "$sen";
+print $query->end_a;
+#
+###
+
+### end form here
+#
+
+PrintBottom($query);
+
+#
+###
+
+sub PrintHeader { # begin PrintHeader
+    
+    my $query = shift;
+    
+    print $query->header;
+    print $query->start_html(-title=>'Show Sentence', -author=>'adapted by Arun Rangarajan from Hans-Michael Muller');
+    
+} # end PrintHeader
+
+sub PrintBottom { # begin PrintBottom
+
+    my $query = shift;
+
+    print $query->end_html;
+
+}   # end PrintBottom

@@ -1,0 +1,82 @@
+#!/usr/bin/perl
+
+# CGI script provides feedback page of Textpresso system
+#
+# Copyright (c) Hans-Michael Muller 2007.
+
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use TextpressoDisplayTasks;
+use TextpressoDisplayGlobals;
+
+my $query = new CGI;
+my $myself = $query->url(-absolute => 1);
+my $location = PrintTop($query, $myself, 1);
+
+# Process form here  
+
+
+
+my $error = "";
+my $em = $query->param('email');
+my $su = $query->param('subject');
+my $ms = $query->param('message');
+
+if ($query->param('submit')) {
+    if ($em ne "") {
+	if ($ms ne "") {
+	    sendmail("nml5566\@gmail.com", $em, $su, $ms);
+	    $error = "success";
+	} else {
+	    $error .= "- no message included -";
+	}
+    } else {
+	$error .= "- no e-mail address specified -";
+    }
+    if ($error ne "success") {
+	print $query->span({-style => "color:red"}, "Error: $error");
+    } else {
+	print $query->span({-style => "color:green"}, "Success! Message sent. Thank you.");
+    }
+}
+
+# End of process form 
+
+# Put form here                                                                                                                                                                                                 
+
+if ($error ne "success") {
+    print $query->start_form(-method => 'POST', -action => $myself);
+
+    my $main = new TextpressoTable;
+    $main->init;
+    $main->addtablerow("");
+    $main->addtablerow("E-mail: " . $query->textfield(-name => 'email', -size => 50, -maxlength => 255));
+    $main->addtablerow("Subject: " . $query->textfield(-name => 'subject', -size => 50, -maxlength => 255));
+    $main->addtablerow("Message:");
+    $main->addtablerow($query->textarea(-name => 'message',
+					-rows => '20',
+					-columns => '80'));
+    $main->addtablerow($query->submit(-name => 'submit',
+				      -value => 'Submit!'));
+    print $main->maketable($query, tablestyle => 'borderless', width => "40%");
+    print $query->end_form;
+}
+
+# End of form                         
+
+PrintBottom($query);
+
+sub sendmail
+{
+my ($to, $from, $subject, $message) = @_;
+my $sendmail = '/usr/sbin/sendmail';
+open(MAIL, "|$sendmail -oi -t");
+print MAIL "From: $from\n";
+print MAIL "To: $to\n";
+print MAIL "Subject: $subject\n\n";
+print MAIL "$message\n";
+close(MAIL);
+}

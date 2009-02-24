@@ -1,0 +1,22 @@
+#!/usr/bin/perl
+
+use CGI;
+
+$query = new CGI;
+my $JSCRIPT = <<END;
+END
+print $query->header;
+print $query->start_html(-title => 'Multiple Forms',
+			 -script => [
+					{-src => 'http://tetramer.tamu.edu/textpresso/scripts/jquery.idTabs.min.js'},
+					{-code => $JSCRIPT}]
+			);
+print $query->start_div({-class => 'idTabs'});
+print $query->a({-href => '#jquery'}, 'jQuery') . $query->a({-href => '#official'}, ' Tabs3'); 
+print $query->end_div;
+print qq{
+<div id="jquery">If you haven't checked out ...</div> 
+<div id="official">idTabs is only a simple ...</div>
+};
+
+print $query->end_html;

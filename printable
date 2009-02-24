@@ -1,0 +1,144 @@
+#!/usr/bin/perl
+
+# CGI script provides search page of Textpresso system
+#
+# Copyright (c) Hans-Michael Muller 2007.
+
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use POSIX;
+use TextpressoDisplayGlobals;
+use TextpressoDisplayTasks;
+use TextpressoDatabaseGlobals;
+use TextpressoDatabaseQuery;
+use TextpressoDatabaseSearch;
+
+my $query = new CGI;
+my $myself = $query->url(-absolute => 1);
+(my $base = $query->url(-base => 1)) =~ s/http\:\/\///g;
+my @cookies = ();
+foreach my $opt (keys % {(DB_DISPLAY_FIELDS)}, 'supplementals', 'epp', 'matches') {
+    if (defined($query->param("disp_$opt"))) {
+	push @cookies, $query->cookie( -name => "opt_$opt",
+				       -value => $query->param("disp_$opt"),
+				       -domain => $base,
+				       -expires => '+365d');
+    }
+}
+
+my $location = PrintTop($query, $myself, 0, @cookies);
+
+########################################################
+# Read in the HTML links up-front
+my $infile = "<" . HTML_LINKTEMPLATES;
+my @regexps = ();
+my @urls = ();
+my @explanations = ();
+open (IN, $infile);
+while (my $line = <IN>) {
+    chomp ($line);
+    next if (!($line =~ /^http/));
+    (my $u, my $r, my $e) = split (/[ \t]+/, $line);
+    push @urls, $u;
+    push @regexps, $r;
+    push @explanations, $e;
+}
+########################################################
+
+# Process form here
+
+my $starttime = time();
+my $tpquery;
+my %results;
+
+foreach my $opt (keys % {(DB_DISPLAY_FIELDS)}, 'supplementals', 'epp', 'matches') {
+    if ((defined($query->cookie("opt_$opt")) && (!defined($query->param("disp_$opt"))))) {
+	$query->param(-name => "disp_$opt",
+		      -value => $query->cookie("opt_$opt"));
+    }
+}
+
+if (defined($query->param('dodisplayquery'))) {
+    ($tpquery, my $dummy) = ParseInputFields($query, "");
+}
+    
+my $filteredfilename = $query->param('filteredfilename');
+%results = textpressosearch($tpquery, 0, $filteredfilename, $query->param('mode'));
+my %ltk = littgtkey(\%results);  # this also `cleans' up empty entries of results
+my @ltks = keys % ltk;
+my $doctotal = scalar(@ltks);
+my $clstrtotal = 0;
+foreach my $l (@ltks) {
+    $clstrtotal += scalar (@{$ltk{$l}});
+}
+
+# End of process form
+
+# Print output here
+
+if (defined($query->param('dodisplayquery'))) {
+    print CreateQueryDisplay($query, $tpquery);
+    print $query->p;
+}
+
+if (%results) {
+
+    my @highlightkeywords = makehighlightterms($tpquery, 'keyword') if ($query->param("disp_searchterm-highlighting") eq 'on');
+    my %invlist = preparesortresults(\%ltk, \%results, $query->param('sort'));
+    my @sorted = ();
+    if ($query->param('sort') =~ /(score|hits|year)/i) {
+	@sorted = (sort numerically keys % invlist);
+    } else {
+	@sorted = (sort alphabetically keys % invlist);
+    }
+
+    print $query->hr;
+    
+    if ($doctotal < 500) {
+	
+	print $query->span({-style => "font-weight:bold;"}, "$clstrtotal matches found in $doctotal documents. ");
+	print $query->span({-style => "font-weight:bold;"}, "Results sorted by ", $query->param('sort'), ".");
+	
+	my $resulttable = new TextpressoTable;
+	$resulttable->init;
+	$resulttable->addtablerow();
+	foreach my $k (@sorted) {
+	    foreach my $l (sort @{$invlist{$k}}) {
+		my $entrytable = new TextpressoTable;
+		$entrytable->init;
+		my $score = 0;
+		(my $lit, my $tgt, my $key) = split(/\ -\ /, $l);
+		foreach my $clstr (@{$ltk{$l}}) {
+		    $score += $results{$lit}{$key}{$tgt}{$clstr};
+		}
+		my @highlights = (@highlightkeywords, makehighlightterms($tpquery, 'category', $lit, $tgt, $key)) if ($query->param("disp_searchterm-highlighting") eq 'on');
+		my $rightcontent = $query->div({-align => "right"}, 
+					       $query->span({-style => "font-weight:bold;"}, "Score: ") . sprintf("%4.2f", $score));
+		$entrytable->addtablerow($rightcontent);
+		my $var = "(" . join("|", @highlights) . ")";
+		makeentry($query, $entrytable, $l, \@{$ltk{$l}}, \%results, \@urls, \@regexps, \@explanations, $var);
+		$resulttable->addtablerow($entrytable->maketable($query, tablestyle => 'borderless', 
+								 DSP_HDRCOLOR => 'black', DSP_HDRSIZE => '75%',
+								 width => "100%"));
+	    }
+	}
+	print $resulttable->maketable($query, 
+				      tablestyle => 'headerbackground', cellspacing => '0',
+				      cellpadding => '0', border => '1',
+				      DSP_HDRBCKGRND => '#696969', width => "100%");
+    } else {
+	print $query->span({-style => "font-weight:bold;"}, "$doctotal documents: too many entries! Aborting!");
+    }
+
+}
+
+# End print output 
+
+my $extramessage = "All rights reserved.";
+PrintBottom($query, $extramessage);
+
+sub numerically { $b <=> $a }
+sub alphabetically { $a cmp $b }

@@ -1,0 +1,145 @@
+#!/usr/bin/perl
+
+# CGI script provides the aboutpage of Textpresso system
+#
+# Copyright (c) Hans-Michael Muller 2007.
+
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use TextpressoDisplayTasks;
+use TextpressoDisplayGlobals;
+use TextpressoDatabaseGlobals;
+use TextpressoTable;
+
+my $query = new CGI;
+my $myself = $query->url(-absolute => 1);
+
+PrintTop($query, $myself, 1);
+
+my $about_textpresso = new TextpressoTable;
+$about_textpresso->init;
+$about_textpresso->addtablerow("About Textpresso");
+my $text = "Textpresso is an information extracting and processing package for biological literature. ";
+$text .= "It was initially developed by Hans-Michael Muller, Eimear Kenny and Paul W. Sternberg, ";
+$text .= "with contributions from Juancarlos Chan and David Chen. ";
+$text .= "This new version was developed by Hans-Michael Muller with contributions from Arun Rangarajan. ";
+$text .= "Textpresso is part of " . $query->a({href=>"http://www.wormbase.org", target=>"_blank"}, "WormBase");
+$text .= " at the " . $query->a({href=>"http://www.caltech.edu/", target=>"_blank"}, "California Institute of Technology");
+$text .= ", California.";
+$text .= " Textpresso is supported by a grant from the ";
+$text .= $query->a({href=>"http://www.genome.gov", target=>"_blank"}, "National Human Genome Research Institute");
+$text .= " at the US National Institutes of Health # HG004090. ";
+$about_textpresso->addtablerow($text);
+#print $about_textpresso->maketable($query, tablestyle => 'borderless', width => "60%");
+#print $query->br;
+
+my $copyright = new TextpressoTable;
+$copyright->init;
+$copyright->addtablerow("Copyright");
+my $text = "Copyright &copy; 2001-2007 California Institute of Technology. All rights reserved. ";
+$copyright->addtablerow($text);
+$text = "The " . $query->a({href=>"http://www.geneontology.org", target=>"_blank"}, "Gene Ontology Consortium");
+$text .= " holds a copyright for most of the contents of the \'Biological Process\', \'Molecular Function\' and \'Cellular Component\' ";
+$text .= "ontologies used on this site. ";
+$text .= "All other material in this web site are copyrighted by the authors of the Textpresso Project at the California Institute of Technology. ";
+$text .= "All materials appearing on this server may not be reproduced or stored in a retrieval system without prior written permission of the publisher and in no case for profit. ";
+$text .= "Documents from this server are provided \"AS-IS\" without any warranty, expressed or implied. ";
+$copyright->addtablerow($text);
+$text = "Any results and output obtained from the Textpresso";
+$text .= $query->span({style => "vertical-align:super;font-size:60%"}, "TM");
+$text .= " server shall not be used for any purpose other than private study, scholarship or academic research. ";
+$text .= " Anybody using Textpresso";
+$text .= " in excess of \"fair use\" may be liable for copyright infringement. ";
+$copyright->addtablerow($text);
+$text = "Hans-Michael M&uuml;ller, Eimear E. Kenny and Paul W. Sternberg claim all rights in the word \"Textpresso\" as a trademark. ";
+$copyright->addtablerow($text);
+#print $copyright->maketable($query, tablestyle => 'borderless', width => "60%");
+#print $query->br;
+
+my $database_description = new TextpressoTable;
+$database_description->init;
+$database_description->addtablerow("Database Description");
+$database_description->addtablerow("Currently, this site contains information about the following literatures and data types (data count in parenthesis):");
+my %count = ();
+foreach my $lit (keys % {(DB_LITERATURE)}) {
+    my $fn = DB_ROOT . (DB_LITERATURE)->{$lit} . DB_TEXT;
+    my @types = @{(DB_SEARCH_TARGETS_DEFAULTS)};
+    my @content = ();
+    foreach my $type (sort @types) {
+	opendir (DIR,"$fn/$type/");
+	my @fl = readdir (DIR);
+	closedir (DIR);
+	my $nu = @fl;
+	$nu -= 2;
+	$count{total} += $nu;
+	(my $nice = $type) =~ s/$fn\///; 
+	$count{$nice} += $nu;
+	push @content, "$nice ($nu)" if ($nu);
+    }
+    $database_description->addtablerow($query->span({-style=>"text-decoration:underline"}, $lit) . ": " . join(", ", @content)) if (@content);
+}
+
+my @aux = ();
+foreach my $t (sort keys % count) {
+    push @aux, "$t : $count{$t}";
+}
+
+$database_description->addtablerow($query->span({-style=>"text-decoration:underline"}, "Summary") . ": " . join(", ", @aux)) if (@aux);
+
+my $textpresso_sites = new TextpressoTable;
+$textpresso_sites->init;
+$textpresso_sites->addtablerow("Textpresso Sites");
+$textpresso_sites->addtablerow(
+		 $query->a({-href=>'http://www.textpresso.org/celegans', -target=>'_blank'}, "<b><em>C. elegans</em></b>") . ", " .
+		 $query->a({-href=>'http://www.textpresso.org/fly', -target=>'_blank'}, "<b><em>D. melanogaster</em></b>") . ", " .
+		 $query->a({-href=>'http://www.textpresso.org/neuroscience', -target=>'_blank'}, "<b>Neuroscience</b>") . ", " .
+		 $query->a({-href=>'http://www.textpresso.org/master', -target=>'_blank'}, "<b>Master <em>(under construction)</em></b>")
+		 );
+$textpresso_sites->addtablerow($query->a({-href=>'http://www.yeastgenome.org/textpresso', -target => '_blank'}, "<b><em>Yeast</em></b>") . ", " .
+		 $query->a({-href=>'http://www.ciliate.org/textpresso', -target => '_blank'}, "<b><em>Tetrahymena</em></b>") . ", " .
+		 $query->a({-href=>'http://ashbya.genome.duke.edu/textpresso/index.html', -target => '_blank'}, "<b><em>Ashbya gossypii</em></b>") . ", " .
+		 $query->a({-href=>'http://helab.bioinformatics.med.umich.edu/bbp/textpresso/cgi-bin/simpleretrieval.cgi', -target => '_blank'},
+			   "<b><em>Brucella</em></b>")
+		 );
+$textpresso_sites->addtablerow($query->a({-href=>'http://www.textpresso.ebs.ogi.edu/index.html', -target => '_blank'}, "<b>OHSU Fungal Textpresso</b>") . ": " .
+		 $query->a({-href=>'http://www.textpresso.ebs.ogi.edu/ncrassa/index.html', -target => '_blank'}, "<b><em>N. crassa</em></b>") . ", " .
+		 $query->a({-href=>'http://www.textpresso.ebs.ogi.edu/anidulans/index.html', -target => '_blank'}, "<b><em>A. nidulans</em></b>") . ", " .
+		 $query->a({-href=>'http://www.textpresso.ebs.ogi.edu/mgrisea/index.html', -target => '_blank'}, "<b><em>M. grisea</em></b>") . ", " .
+		 $query->a({-href=>'http://www.textpresso.ebs.ogi.edu/cryptococcus/index.html', -target => '_blank'}, "<b><em>Cryptococcus</em></b>") . ", " .
+		 $query->a({-href=>'http://www.textpresso.ebs.ogi.edu/grandfungal/index.html', -target => '_blank'}, "<b><em>Filamentous Fungi (Beta)</em></b>")
+		 );
+
+my $maintable = new TextpressoTable;
+$maintable->init;
+$maintable->addtablerow();
+$maintable->addtablerow( $about_textpresso->maketable ($query,
+					tablestyle => 'borderless-headerbackground',
+					width => '100%'),
+			 $copyright->maketable ($query,
+					tablestyle => 'borderless-headerbackground',
+					width => '100%')
+
+			);
+print $maintable->maketable ($query,
+                             tablestyle => 'borderless-headerbackground',
+                             width => '100%');
+
+my $maintable2 = new TextpressoTable;
+$maintable2->init;
+$maintable2->addtablerow();
+$maintable2->addtablerow($database_description->maketable ($query,
+					tablestyle => 'borderless-headerbackground',
+					width => '100%'),
+			$textpresso_sites->maketable ($query,
+					tablestyle => 'borderless-headerbackground',
+					width => '100%')
+			);
+print $maintable2->maketable ($query,
+                             tablestyle => 'borderless-headerbackground',
+                             width => '100%');
+
+
+PrintBottom($query);

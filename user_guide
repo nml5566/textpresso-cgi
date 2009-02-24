@@ -1,0 +1,357 @@
+#!/usr/bin/perl
+
+# CGI script provides user guide to Textpresso system
+#
+# Copyright (c) Hans-Michael Muller 2007.
+
+use strict;
+# The following line needs adjustments for each implementation
+use lib "/usr/local/lib/textpresso/displaying/ecoli/";
+# end line that needs adjustments
+use CGI;
+use TextpressoDisplayTasks;
+use TextpressoDisplayGlobals;
+
+my $query = new CGI;
+my $myself = $query->url(-absolute => 1);
+
+PrintTop($query, $myself, 1);
+#####
+my $CONTENT = <<END_CONTENT;
+
+<P ALIGN=LEFT><BR><BR>
+</P>
+<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+<FONT FACE="Utopia, serif"><FONT SIZE=3>Welcome to the <I>Textpresso
+</I>user guide. This document briefly explains the functionality of
+the <I>Textpresso </I>website.</FONT></FONT></P>
+<P ALIGN=LEFT><BR><BR>
+</P>
+<DIV ID="Section1" DIR="LTR">
+	<P ALIGN=LEFT STYLE="font-style: normal; text-decoration: none"><FONT FACE="Utopia, serif"><FONT SIZE=5><B>1)
+	Main Menu</B></FONT></FONT></P>
+</DIV>
+<OL>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<IMG SRC="../../textpresso/gif/main_menu.jpg" NAME="Graphic1" ALIGN=LEFT WIDTH=927 HEIGHT=114 BORDER=0><BR CLEAR=LEFT><FONT FACE="Utopia, serif"><FONT SIZE=3>There
+	are currently nine click-able items aligned horizontally underneath
+	the logo (1). The highlighting indicates the current work area of
+	the user. The menu items are:</FONT></FONT></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3><U>About Textpresso</U> &amp;
+	<U>Copyright</U>: Information about us and copyright issues can be
+	found here.</FONT></FONT></P>
+	<P ALIGN=LEFT STYLE="font-weight: medium"><FONT FACE="Utopia, serif"><FONT SIZE=3><U>Downloads</U><SPAN STYLE="text-decoration: none">:
+	The <I>Textpresso </I>software can be downloaded in this section.</SPAN></FONT></FONT></P>
+	<P ALIGN=LEFT><FONT FACE="Utopia, serif"><A HREF="#Section2|region"><U>Feedback</U></A><SPAN STYLE="text-decoration: none">:
+	This interface presents a form to leave feedback, questions and
+	suggestions for the <I>Textpresso</I> team.</SPAN></FONT></P>
+	<P ALIGN=LEFT><FONT FACE="Utopia, serif"><A HREF="#Section3|region"><U>Home</U></A><SPAN STYLE="text-decoration: none">:
+	The homepage contains news and messages, information about the
+	database and a smaller version of the search interface.</SPAN></FONT></P>
+	<P ALIGN=LEFT><FONT FACE="Utopia, serif"><A HREF="#Section4|region"><U>Ontology</U></A><SPAN STYLE="text-decoration: none">:
+	The corpus of literatures is marked up with terms and phrases of an
+	ontology, which are contained in a lexicon. One can browse the terms
+	and test specific terms against the lexicon.</SPAN></FONT></P>
+	<P ALIGN=LEFT><FONT FACE="Utopia, serif"><A HREF="#Section5|region"><U>Query
+	Language</U></A><SPAN STYLE="text-decoration: none">: This interface
+	offers the most powerful and versatile search options available in
+	<I>Textpresso</I>.</SPAN></FONT></P>
+	<P ALIGN=LEFT><FONT FACE="Utopia, serif"><A HREF="#Section6|region"><U>Search</U></A><SPAN STYLE="text-decoration: none">:
+	Most common search tasks can be performed using this option. It is
+	the most frequented page of the system.</SPAN></FONT></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium"><FONT FACE="Utopia, serif"><FONT SIZE=3><U>User
+	Guide</U><SPAN STYLE="text-decoration: none">: This document.</SPAN></FONT></FONT></P>
+</OL>
+<P ALIGN=LEFT><BR><BR>
+</P>
+<P ALIGN=LEFT><BR><BR>
+</P>
+<DIV ID="Section2" DIR="LTR"><A NAME="Section2|region"></A>
+	<P ALIGN=LEFT STYLE="font-style: normal; text-decoration: none"><FONT FACE="Utopia, serif"><FONT SIZE=5><B>2)
+	Feedback</B></FONT></FONT></P>
+</DIV>
+<OL START=2>
+	<P><IMG SRC="../../textpresso/gif/feedback.jpg" NAME="graphics1" ALIGN=LEFT WIDTH=990 HEIGHT=647 BORDER=0><BR CLEAR=LEFT></P>
+</OL>
+<OL>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>This form allows the user to
+	leave a message for the <I>Textpresso</I> team. Fill out all the
+	information in the given text field and hit the “Submit!”
+	button. If some fields are left empty, the form will be returned to
+	the user, and the message will not be accepted for submission.</FONT></FONT></P>
+</OL>
+<P ALIGN=LEFT><BR><BR>
+</P>
+<DIV ID="Section3" DIR="LTR"><A NAME="Section3|region"></A>
+	<P ALIGN=LEFT STYLE="font-style: normal; text-decoration: none"><FONT FACE="Utopia, serif"><FONT SIZE=5><B>3)
+	Home</B></FONT></FONT></P>
+</DIV>
+<OL START=2>
+	<P><IMG SRC="../../textpresso/gif/home.jpg" NAME="graphics2" ALIGN=LEFT WIDTH=1208 HEIGHT=884 BORDER=0><BR CLEAR=LEFT></P>
+</OL>
+<OL>
+	<P ALIGN=LEFT><SPAN STYLE="text-decoration: none"><FONT FACE="Utopia, serif">The
+	home page consist of three parts: a simplified search interface, a
+	news and message board as well as the database description. The
+	search interface allows to do keyword searches (1) and/or category
+	searches. The keyword textfield allows for specifying phrases (terms
+	that contain more than one word), as well as simple Boolean
+	operation such as 'AND', 'OR', and 'NOT'. The keyword search can be
+	refined by specifying whether an exact match has to occur or whether
+	the match has to be case sensitive (2). In addition, certain
+	categories of the <I>Textpresso </I>ontology can be required to be
+	present. Up to 4 categories can be specified. Finally, one can
+	restrict searches to specific literatures (4). By default, all
+	criteria that are entered in this interface have to match in a
+	sentence. One can modify the search scope by using the original
+	<A HREF="#Section6|region">search interface</A>, which can be
+	accessed from the main menu. To submit the query, hit the 'Search!'
+	button (5).</FONT></SPAN></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>The 'News &amp; Messages'
+	column (6) contains updates about latest developments and news. The
+	database upon which the system relies on is described at the bottom
+	of the page (7). All literatures are listed separately, with data
+	counts of particular database fields. The last line summarizes the
+	full database.</FONT></FONT></P>
+</OL>
+<P ALIGN=LEFT><BR><BR>
+</P>
+<DIV ID="Section4" DIR="LTR"><A NAME="Section4|region"></A>
+	<P ALIGN=LEFT STYLE="font-style: normal; text-decoration: none"><FONT FACE="Utopia, serif"><FONT SIZE=5><B>4)
+	Ontology</B></FONT></FONT></P>
+</DIV>
+<OL START=2>
+	<P><IMG SRC="../../textpresso/gif/ontology.jpg" NAME="Graphic2" ALIGN=LEFT WIDTH=1206 HEIGHT=651 BORDER=0><BR CLEAR=LEFT></P>
+</OL>
+<OL START=0>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>The ontology page serves two
+	functions: First one can test a word or phrase for a match in the
+	<I>Textpresso </I>lexicon. After entering a term in the textfield
+	(1) and hitting the 'Test!' button (2), the system returns all
+	entries in the lexicon whose regular expression match the term (3).</FONT></FONT></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>The second function allows
+	display of the lexicon of a particular category. Choose a category
+	from the pop-up menu (4) and hit the 'Display!' button (5). All
+	entries of one category are then displayed, and since the return can
+	be quite long, the response time can be somewhat slow.</FONT></FONT></P>
+</OL>
+<P ALIGN=LEFT><BR><BR>
+</P>
+<DIV ID="Section5" DIR="LTR"><A NAME="Section5|region"></A>
+	<P ALIGN=LEFT STYLE="font-style: normal; text-decoration: none"><FONT FACE="Utopia, serif"><FONT SIZE=5><B>5)
+	Query Language</B></FONT></FONT></P>
+</DIV>
+<OL START=2>
+	<P><IMG SRC="../../textpresso/gif/query_language_1.jpg" NAME="graphics3" ALIGN=LEFT WIDTH=1207 HEIGHT=577 BORDER=0><BR CLEAR=LEFT></P>
+</OL>
+<OL START=0>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>The query language is the
+	most versatile and powerful element of <I>Textpresso</I>.
+	Complicated retrieval tasks can be performed by carefully crafting
+	sets of commands. There are three kind of commands: the first kind
+	(<I>set, clear</I>) manipulate parameter settings, the second kind
+	(<I>find</I>) performs keyword, phrase, category and attribute
+	searches, and the third kind (<I>and, or, not, display</I>)
+	manipulates search results, which are kept in an entity called
+	'variable' here. The syntax for the commands are listed in the
+	explanation box (1).</FONT></FONT></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>The text area (2) accepts
+	commands line by line. The user can either enter one command at a
+	time and then press the 'Submit!' button (3), or enter all commands
+	(line by line) at once and the have it processed by hitting the
+	'Submit!' button (3).</FONT></FONT></P>
+	<P ALIGN=LEFT><SPAN STYLE="text-decoration: none"><FONT FACE="Utopia, serif">The
+	<B><I>set</I></B> command sets a parameter to a single or a series
+	of values (example: <I>set </I>literature=elegans, melanogaster).
+	The parameter names are 'literature', 'field', 'exact match', 'case
+	sensitive', 'sentence scope', 'search mode' and 'sorted by'. When
+	entering a parameter name, the name of the parameters needs to be
+	spelled out, however, if a name consists of two words, you can
+	specify either one of them. The value a parameter can be set to
+	depends on the particular implementation of database of <I>Textpresso</I>.
+	It can be obtained from their respective input field (check boxes,
+	popup-menu) in the <A HREF="#Section6|region">search interface</A>
+	(accessible through the main menu). A value can be abbreviated by
+	using the first few letters that identify it uniquely (for example,
+	you could use <I>set</I> literature=ele).</FONT></SPAN></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>The <B><I>clear</I></B>
+	command clears the setting of a parameter (example: <I>clear</I>
+	all). The user can clear all parameter by using the word 'all' or a
+	specific parameter, by naming it, again spelled out completely.</FONT></FONT></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>The <B><I>find</I></B>
+	command performs the actual search (example: <I>find</I> keyword egg
+	&gt; 0 -&gt; var_egg). The exact syntax of this command is </FONT></FONT>
+	</P>
+</OL>
+<P ALIGN=CENTER STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+<FONT COLOR="#000000"><FONT FACE="verdana, helvetica"><FONT SIZE=3><I>find
+</I>(<I>keyword </I>| <I>category</I>| <I>attribute</I>) (keyword |
+<I>&quot;</I>phrase<I>&quot;</I> | category |
+category<I>:</I>attribute<I>:</I>value) (<I>&lt; </I>| <I>== </I>| <I>&gt;</I>)
+number <I>-&gt;</I> variable-name.</FONT></FONT></FONT></P>
+<OL START=0>
+	<P ALIGN=LEFT><SPAN STYLE="text-decoration: none"><FONT FACE="Utopia, serif"><FONT COLOR="#000000">The
+	second parameter determines what the user wants to search, the
+	choices are 'keyword', 'category' or 'attribute'. The third
+	parameter specifies the data item the user is searching, such as an
+	keyword (for example, mitosis), a phrase (for example, ”anchor
+	cell”), a category (for example, regulation) or attribute (for
+	example, regulation:type:positive). The fourth and fifth parameters
+	determine the numerical constraint with which the data item has to
+	be found in a given search scope (the search scope is set with the
+	<I>set</I> command, see above). Thus, '&gt; 2' means that the item
+	has to be present in the search scope more than two times. The arrow
+	(-&gt;) following these two parameter is a fixed character sequence
+	and cannot be changed. It suggestively points to the last parameter,
+	the variable-name, into which the search result is stored.
+	Characters and numbers should be used for this name. If the <I>find</I>
+	command is the last in the text area before the user hits the
+	'Submit!' button, the search results of this last <I>find</I>
+	command is returned in the result table. The result table is
+	described in details in the section about the <A HREF="#Section6|region">search
+	interface</A>.</FONT></FONT></SPAN></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT COLOR="#000000"><FONT FACE="Utopia, serif"><FONT SIZE=3>The
+	<B><I>and</I></B>, <B><I>or</I></B> and <B><I>not </I></B>commands
+	concatenate two search results, which have been previously obtained
+	using the <I>find</I> command and stored in two variables. The
+	result of this operation is stored in a third variable, which is
+	specified last (example: <I>and </I>gene-result cell-result -&gt;
+	gene-and-cell). Again, if one of these commands happen to be last in
+	a series of commands in the text area, the result of this operation
+	is returned in the result table.</FONT></FONT></FONT></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT COLOR="#000000"><FONT FACE="Utopia, serif"><FONT SIZE=3>Finally,
+	the <B><I>display</I></B> command displays a search result that had
+	been previously obtained, but was lost in the course of further
+	operations. The variable name to which the search was assigned to
+	has to be provided as a parameter. Only variables within a session
+	can be retrieved, i.e., once the user leave the query language
+	interface, any search results are lost.</FONT></FONT></FONT></P>
+	<P ALIGN=LEFT><SPAN STYLE="text-decoration: none"><FONT FACE="Utopia, serif"><FONT COLOR="#000000">The
+	following figure shows the search return (1) of a query formulated
+	with the query language interface. Details of the search return
+	table are explained <A HREF="#Section6|region">below</A>. Note that
+	the last set of commands is documented in the explanation section
+	(2):</FONT></FONT></SPAN></P>
+</OL>
+<OL START=2>
+	<P><IMG SRC="../../textpresso/gif/query_language_2.jpg" NAME="graphics4" ALIGN=LEFT WIDTH=1208 HEIGHT=610 BORDER=0><BR CLEAR=LEFT></P>
+</OL>
+<P ALIGN=LEFT><BR><BR>
+</P>
+<DIV ID="Section6" DIR="LTR"><A NAME="Section6|region"></A>
+	<P ALIGN=LEFT STYLE="font-style: normal; text-decoration: none"><FONT FACE="Utopia, serif"><FONT SIZE=5><B>6)
+	Search</B></FONT></FONT></P>
+</DIV>
+<OL START=2>
+	<P><IMG SRC="../../textpresso/gif/search.jpg" NAME="graphics5" ALIGN=LEFT WIDTH=1207 HEIGHT=485 BORDER=0><BR CLEAR=LEFT></P>
+</OL>
+<OL START=0>
+	<P ALIGN=LEFT><SPAN STYLE="text-decoration: none"><FONT FACE="Utopia, serif">The
+	search page is probably the interface the user will frequent most.
+	The user has a variety of options to conveniently choose from;
+	however, the most accurate way to formulate a query is using the
+	query language. Therefore, if the search page does not fulfill
+	required needs, please go <A HREF="#Section5|region">there</A>.</FONT></SPAN></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>The user can enter a
+	keywords or phrase in a text field (1), and multiple keywords and/or
+	phrases can be concatenated with the usual operators 'AND', 'OR',
+	and 'NOT' in the same text field, using the syntax described below
+	the text field. Exact matches and case sensitivity can be requested
+	by clicking on the corresponding boxes (2). Furthermore, the user
+	can require up to four categories to be present, which are specified
+	with popup menus (3). The search can be restricted to certain
+	literatures (4), as well as searches can be confined to particular
+	sections of the publication called fields (5). Search scope, search
+	mode and sort option can be modified with popup menus (6). The
+	search scope determines where keywords and categories requirements
+	have to be met, either on a sentence level, on a field level
+	(abstract, author, body, title, year) or on a document level
+	(anywhere in the document. The search mode determines how the score
+	is calculated. 'Boolean' just adds up occurrences of matched
+	entities in an integer fashion. 'tf<FONT FACE="Verdana">&middot;id</FONT>f'
+	(term frequency times inverse document frequency) overweights rare
+	terms. 'Latent themes' emphasizes matches that have similar semantic
+	contexts as the query, but is not implemented yet. The search return
+	can be sorted according to certain output fields, such as year of
+	publication, author, title etc. It also can be sorted according to
+	score. Finally, to submit the search, hit the 'Search!' button (7).</FONT></FONT></P>
+</OL>
+<OL START=2>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<IMG SRC="../../textpresso/gif/result_table.jpg" NAME="graphics6" ALIGN=LEFT WIDTH=1207 HEIGHT=721 BORDER=0><BR CLEAR=LEFT></P>
+</OL>
+<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+<BR><BR>
+</P>
+<OL START=2>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	</P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>The result table of a search
+	return has several features: the user can flip through all pages of
+	the search return by using the page selector (1). The output of the
+	result table is edited by the display options panel (2). You can
+	switch on or off the display of abstract, accession, author,
+	citation, journal, title, type or year information by clicking on
+	the respective links. You can further toggle the supplemental links
+	and files as well as the presence of links in text ('textlinks').
+	Highlighting of search terms that are matched in the text can be
+	switched on or off. The 'matching-sentences' menu allows the user to
+	choose how many sentences around a match should be displayed. The
+	option 'none' does not display the matching sentences at all, while
+	'1' just displayed the matching sentence. Finally, the entries/page
+	menu determines how many publications are displayed per page. For
+	speedy returns, choose a low number for both, the
+	'matching-sentences' option as well as the 'entries/page' option.</FONT></FONT></P>
+	<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+	<FONT FACE="Utopia, serif"><FONT SIZE=3>The search summary (3) tells
+	the user how many matches have been found in how many documents, and
+	indicates the search time. The search time does not include the time
+	to produce the webpage. Following the search summary, links that
+	concern all entries of a search return are presented (4): The first
+	link produces an Endnote file for all result entries, the second
+	link produces a printer-friendly version of the result table. The
+	production of this table might take quite a while when the search
+	return is huge. The publication display (5) shows detailed
+	bibliographical information about each publication which can be
+	customized in the display options panel. The publication display
+	might contain textlinks to other databases (such as gene or cell
+	report pages). Search terms that match are highlighted if the option
+	is turned on. In case of phrases, not only the phrase, but also the
+	phrase is highlighted, but also its constituents. The score of each
+	entry is displayed in the upper right corner (6). Finally, at the
+	bottom of each entry, there are several links to supplemental files
+	and other web pages pertaining to that particular entry. The first
+	links produces an Endnote file for the publication, the second links
+	to the on-line text of the publication. At last, the third link lead
+	to PubMed displaying related articles. </FONT></FONT>
+	</P>
+</OL>
+<P ALIGN=LEFT><BR><BR>
+</P>
+<P ALIGN=LEFT><BR><BR>
+</P>
+<P ALIGN=LEFT STYLE="font-style: normal; font-weight: medium; text-decoration: none">
+<FONT FACE="Utopia, serif"><FONT SIZE=3>Last update: <SDFIELD TYPE=DATETIME SDVAL="38771.7127893519" SDNUM="1033;1033;NN, MMMM D, YYYY">Thu, February 23, 2006</SDFIELD>
+<SDFIELD TYPE=DATETIME SDVAL="38771.7158564815" SDNUM="1033;1033;HH:MM:SS AM/PM">05:10:50 PM</SDFIELD>
+by Hans-Michael Muller.</FONT></FONT></P>
+<P ALIGN=LEFT><BR><BR>
+</P>
+
+END_CONTENT
+
+print $CONTENT;
+#####
+PrintBottom($query);

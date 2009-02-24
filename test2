@@ -1,0 +1,59 @@
+#!/usr/bin/perl
+
+use CGI;
+
+$query = new CGI;
+$JSCRIPT=<<END;
+function inputBoxFocusListener(e, eltId)
+			{
+				if(document.getElementById(eltId).value == 'Type Something In Here')
+					document.getElementById(eltId).value = '';
+			}
+	
+			function inputBoxBlurListener(e, eltId)
+			{
+				if(document.getElementById(eltId).value.length == 0)
+					document.getElementById(eltId).value = 'Type Something In Here';
+			};
+				
+			function setupTextBox(inputId)
+			{
+				if(document.getElementById(inputId).value.length == 0 )
+					document.getElementById(inputId).value = 'Type Something In Here';
+
+				YAHOO.util.Event.addListener(inputId, "focus", inputBoxFocusListener, inputId);
+				YAHOO.util.Event.addListener(inputId, "blur", inputBoxBlurListener, inputId);
+			};
+
+			function addAnotherField()
+			{
+			       var count = document.getElementsByTagName('input').length-1;
+			       var div = null;
+			
+				var div = document.getElementById('divId0').cloneNode(true);
+				var newInputBox = YAHOO.util.Dom.getFirstChild(div);
+				
+				div.id = div.id.replace("0", count);
+				newInputBox.id = newInputBox.id.replace("0", count);
+				newInputBox.value = '';
+				
+				YAHOO.util.Dom.insertAfter(div, document.getElementById('divId0'));
+				
+				setupTextBox(newInputBox.id);
+			};
+END
+print $query->header;
+print $query->start_html(-title => 'Multiple Forms',
+			 -script => [{-src => 'http://yui.yahooapis.com/2.5.2/build/yahoo-dom-event/yahoo-dom-event.js'}, {-code => $JSCRIPT}]
+			);
+print $query->button(-name => 'nothing',
+			-value => 'Add another field',
+			-onclick => 'addAnotherField()',
+			);
+print $query->start_div( {-id => 'divId0',}); 
+print $query->popup_menu(-id => 'textBoxId0', -values => [qw/bod dog soon moon/], -default => 'moon',);
+print $query->end_div;
+
+print $query->end_html;
+
+

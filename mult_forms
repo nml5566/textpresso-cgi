@@ -1,0 +1,49 @@
+#!/usr/bin/perl
+
+use CGI;
+
+$query = new CGI;
+$JSCRIPT=<<END;
+var counter = 0;
+
+function init() {
+	document.getElementById('moreFields').onclick = moreFields;
+	moreFields();
+}
+
+function moreFields() {
+	counter++;
+	var newFields = document.getElementById('readroot').cloneNode(true);
+	newFields.id = '';
+	newFields.style.display = 'block';
+	var newField = newFields.childNodes;
+	for (var i=0;i<newField.length;i++) {
+		var theName = newField[i].name
+		if (theName)
+			newField[i].name = theName + counter;
+	}
+	var insertHere = document.getElementById('writeroot');
+	insertHere.parentNode.insertBefore(newFields,insertHere);
+}
+
+END
+print $query->header;
+print $query->start_html(-title => 'Multiple Forms',
+			 -script => $JSCRIPT
+			);
+print $query->button(-name => 'target', -value => '+',
+		     -onclick => 'moreFields()',
+			);
+print $query->popup_menu(-name => 'test', -values => [qw/bod dog soon moon/], -default => 'moon',);
+print $query->start_div( {-id => 'readroot', -style => 'display: none',}); 
+print $query->button(-value => '-',
+		     -onclick => 'this.parentNode.parentNode.removeChild(this.parentNode)',
+			);
+print $query->popup_menu(-name => 'test2', -values => [qw/bod dog soon moon/], -default => 'moon',);
+print $query->end_div;
+
+print $query->span( {-id => 'writeroot'} );
+print $query->end_span;
+
+print $query->end_html;
+
